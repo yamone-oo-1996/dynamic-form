@@ -12,8 +12,8 @@ class GreetingHelperTest extends TestCase
         $this->assertSame('Hello, John Doe!', GreetingHelper::buildGreeting('John Doe'));
     }
 
-    public function testBuildGreetingPreservesInternalSpacingFromNormalizeDisplayName()
+    public function testBuildGreetingCollapsesInternalSpacingFromNormalizeDisplayName()
     {
-        $this->assertSame('Hello, John  Doe!', GreetingHelper::buildGreeting('  John  Doe  '));
+        $this->assertSame('Hello, John Doe!', GreetingHelper::buildGreeting('  John  Doe  '));
     }
 }
