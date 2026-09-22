@@ -21,4 +21,9 @@ class StringHelperTest extends TestCase
     {
         $this->assertSame('', StringHelper::normalizeDisplayName(''));
     }
+
+    public function testNormalizeDisplayNameCollapsesRepeatedInternalWhitespace()
+    {
+        $this->assertSame('John Doe', StringHelper::normalizeDisplayName('John    Doe'));
+    }
 }

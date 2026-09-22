@@ -8,13 +8,14 @@ namespace App\Helpers;
 class StringHelper
 {
     /**
-     * Normalize a display name by trimming leading/trailing whitespace.
+     * Normalize a display name by trimming leading/trailing whitespace and
+     * collapsing repeated internal whitespace into a single space.
      *
      * @param string $name
      * @return string
      */
     public static function normalizeDisplayName(string $name): string
     {
-        return trim($name);
+        return trim(preg_replace('/\s+/', ' ', $name));
     }
 }
