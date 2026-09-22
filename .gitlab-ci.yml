@@ -1,0 +1,163 @@
+stages:
+  - preparing
+  - testing
+  - security
+  - building
+
+image: devwithlando/php:8.4-fpm-4
+
+# Define shared rules for branches and tags
+.branches:
+  only:
+    - master
+    - qa-master
+    - dev-master
+    - /^issue-.*$/
+  tags:
+    - kore
+
+Preparing:
+  stage: preparing
+  extends: .branches
+  before_script:
+    - docker-php-ext-install sockets
+    - docker-php-ext-enable sockets
+    - BASE_URL=`echo $CI_REPOSITORY_URL | sed "s;\/*$CI_PROJECT_PATH.*;;"`
+  script:
+    - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts
+    - cp .env.example .env
+  artifacts:
+    paths:
+      - vendor/
+      - packages/
+      - .env
+      - composer.lock
+    expire_in: 1 days
+    when: always
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - composer.lock
+      - vendor/
+
+CodeStyle:
+  stage: testing
+  extends: .branches
+  dependencies: [Preparing]
+  script:
+    - composer test:style
+  artifacts:
+    name: codequality
+    paths:
+      - ./tests/reports/phpcs-quality-report.json
+    reports:
+      codequality: ./tests/reports/phpcs-quality-report.json
+    expire_in: 1 weeks
+    when: always
+
+UnitTest:
+  stage: testing
+  extends: .branches
+  dependencies: [Preparing]
+  services:
+    - mysql:5.7
+  variables:
+    DB_HOST: "$DB_HOST"
+    DB_DATABASE: "$DB_NAME"
+    DB_USERNAME: "$DB_USERNAME"
+    DB_PASSWORD: "$DB_PASSWORD"
+  before_script:
+    - apt-get update && apt-get install -y $PHPIRE_DEPS autoconf g++ make
+    - pecl install xdebug
+    - docker-php-ext-enable xdebug
+    - echo xdebug.mode=coverage >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    - mysql --host="$DB_HOST" --user="$DB_USERNAME" --password="$DB_PASSWORD" -e "DROP DATABASE IF EXISTS $DB_DATABASE;"
+    - mysql --host="$DB_HOST" --user="$DB_USERNAME" --password="$DB_PASSWORD" -e "CREATE DATABASE $DB_DATABASE;"
+  script:
+    - mysql --host="$DB_HOST" --user="$DB_USERNAME" --password="$DB_PASSWORD" "$DB_DATABASE"
+    - composer test:unit
+    - unit_path="$( pwd|sed 's/\//\\\//g' )\/"
+    - sed -i "s/$unit_path//g" tests/reports/junit.xml
+  retry: 2
+  artifacts:
+    name: junit
+    paths:
+      - ./tests/reports/
+      - ./storage/logs
+    reports:
+      junit:
+        - ./tests/reports/junit.xml
+    expire_in: 1 weeks
+    when: always
+  coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+
+CopyPaste:
+  stage: testing
+  extends: .branches
+  script:
+    - test -f phpcpd.phar || curl -L https://phar.phpunit.de/phpcpd.phar -o phpcpd.phar
+    - php phpcpd.phar app/ --log-pmd=./tests/reports/phpcpd-report.xml
+  dependencies: []
+  artifacts:
+    name: phpcpd-report
+    paths:
+      - ./tests/report/phpcpd-report.xml
+    expire_in: 1 weeks
+    when: on_failure
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - phpcpd.phar
+
+SensioLabs:
+  stage: security
+  extends: .branches
+  script:
+    - test -f local-php-security-checker || curl -L -s https://github.com/fabpot/local-php-security-checker/releases/download/v1.2.0/local-php-security-checker_1.2.0_linux_amd64 -o local-php-security-checker
+    - chmod +x local-php-security-checker
+    - ./local-php-security-checker --no-dev
+  dependencies: [Preparing]
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - local-php-security-checker
+
+# DEV/QA stages
+Build-Dev-Qa:
+  stage: building
+  extends: .branches
+  image: docker:latest
+  variables:
+    IMAGE_NAME: "frontiir/dynamic-form"
+  before_script:
+    - echo "$DOCKER_REGISTRY_PASS" | docker login $DOCKER_REGISTRY --username $DOCKER_REGISTRY_USER --password-stdin
+  script:
+    - docker build -t $IMAGE_NAME:$CI_COMMIT_REF_SLUG --no-cache --build-arg SSH_PRIVATE_KEY="$SSH_PRIVATE_KEY" .
+    - docker image tag $IMAGE_NAME:$CI_COMMIT_REF_SLUG $DOCKER_REGISTRY/$IMAGE_NAME:$CI_COMMIT_REF_SLUG
+    - docker image push $DOCKER_REGISTRY/$IMAGE_NAME:$CI_COMMIT_REF_SLUG
+    - docker image rm $DOCKER_REGISTRY/$IMAGE_NAME:$CI_COMMIT_REF_SLUG $IMAGE_NAME:$CI_COMMIT_REF_SLUG
+  except:
+    - /^issue-.*$/
+  when: manual
+  allow_failure: false
+
+# Prod stages
+Build-Prod:
+  stage: building
+  extends: .branches
+  image: docker:latest
+  variables:
+    IMAGE_NAME: "frontiir/dynamic-form"
+  before_script:
+    - echo "$DOCKER_REGISTRY_PASS" | docker login $DOCKER_REGISTRY --username $DOCKER_REGISTRY_USER --password-stdin
+  script:
+    - docker build -t $IMAGE_NAME:$CI_COMMIT_TAG --no-cache --build-arg SSH_PRIVATE_KEY="$SSH_PRIVATE_KEY" .
+    - docker image tag $IMAGE_NAME:$CI_COMMIT_TAG $DOCKER_REGISTRY/$IMAGE_NAME:$CI_COMMIT_TAG
+    - docker image push $DOCKER_REGISTRY/$IMAGE_NAME:$CI_COMMIT_TAG
+    - docker image rm $DOCKER_REGISTRY/$IMAGE_NAME:$CI_COMMIT_TAG $IMAGE_NAME:$CI_COMMIT_TAG
+  only:
+    - tags
+  except:
+    - branches
+  when: manual
+  allow_failure: false
