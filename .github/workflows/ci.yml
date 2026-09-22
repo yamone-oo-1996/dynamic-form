@@ -24,4 +24,19 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Run unit tests
+        id: tests
+        continue-on-error: true
         run: vendor/bin/phpunit --testsuite Unit --filter '/^(?!.*FormServiceTest).*$/'
+
+      - name: Publish test results to Mergify Test Insights
+        if: always()
+        uses: Mergifyio/gha-mergify-ci@v25
+        with:
+          action: junit-process
+          token: ${{ secrets.MERGIFY_TOKEN }}
+          report_path: "tests/reports/junit.xml"
+          test_step_outcome: ${{ steps.tests.outcome }}
+
+      - name: Fail job if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
