@@ -9,6 +9,11 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    # Mergify pushes merge-queue revisions to branches under
+    # mergify/merge-queue/ and opens a draft PR for them, so this workflow's
+    # `pull_request` trigger fires for those too. Skip the job for ordinary
+    # PR revisions so E2E only runs once a PR enters the merge queue.
+    if: startsWith(github.head_ref, 'mergify/merge-queue/')
 
     steps:
       - name: Checkout code
