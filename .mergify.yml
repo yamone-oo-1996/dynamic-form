@@ -1,0 +1,6 @@
+queue_rules:
+  - name: default
+    queue_conditions:
+      - check-success=Unit Tests
+    merge_conditions:
+      - check-success=E2E Tests
