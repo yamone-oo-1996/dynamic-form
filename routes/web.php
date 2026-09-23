@@ -16,3 +16,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return "welcome";
 });
+
+// Temporary sandbox demo page for Playwright E2E POC. No database or
+// external service dependencies — isolated from real application routes.
+Route::get('/e2e-demo', function () {
+    return view('e2e-demo');
+})->name('e2e-demo');
