@@ -29,6 +29,7 @@ Route::group(
         });
 
         Route::group(['prefix' => 'contracts'], function () {
+            Route::get('status', 'ContractController@getContractStatus')->name('contracts.status');
             Route::get('failed', 'ContractController@getFailedContracts')->name('contracts.failed');
             Route::post('recreate', 'ContractController@recreateContract')->name('contracts.recreate');
             Route::put('process/status', 'ContractController@updateContractProcess')->name('contracts.update-process');
