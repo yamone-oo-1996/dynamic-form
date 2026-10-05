@@ -160,6 +160,31 @@ class ContractService implements ContractServiceContract
         }
     }
 
+    public function getContractStatus($refId, $refType)
+    {
+        $reference = null;
+        foreach (ServiceReference::cases() as $case) {
+            if ($case->name === $refType) {
+                $reference = $case;
+                break;
+            }
+        }
+        if ($reference === null) {
+            throw new DataNotFoundException("Invalid reference type: {$refType}");
+        }
+
+        $tracking = $this->dataTransferTrackingRepository->getByRef($refId, $reference->value);
+        if (empty($tracking)) {
+            throw new DataNotFoundException("Contract data not found!");
+        }
+
+        return [
+            'ref_id' => $tracking['reference_id'],
+            'ref_type' => $reference->name,
+            'is_processed' => (int) $tracking['is_processed'],
+        ];
+    }
+
     public function getFailedContracts($refType)
     {
         try {
