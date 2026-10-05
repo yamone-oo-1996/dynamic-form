@@ -45,6 +45,29 @@ class ContractController extends Controller
         return response()->json($response, $response['status']);
     }
 
+    public function getContractStatus(Request $request)
+    {
+        try {
+            $validator = Validator::make(
+                $request->query(),
+                [
+                    'ref_id' => 'required|string',
+                    'ref_type' => 'required|string',
+                ]
+            );
+            if (!$validator->passes()) {
+                throw new InvalidAccessException('Missing or invalid parameters');
+            }
+
+            $data = $validator->validated();
+            $result = $this->contractService->getContractStatus($data['ref_id'], $data['ref_type']);
+            $response = $this->responseHelper->success($result);
+        } catch (DataNotFoundException | InvalidAccessException $e) {
+            $response = $e->getResponse();
+        }
+        return response()->json($response, $response['status']);
+    }
+
     public function getFailedContracts(Request $request)
     {
         try {
