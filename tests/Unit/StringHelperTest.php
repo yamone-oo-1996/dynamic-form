@@ -9,7 +9,7 @@ class StringHelperTest extends TestCase
 {
     public function testNormalizeDisplayNameKeepsNormalName()
     {
-        $this->assertSame('John Doe', StringHelper::normalizeDisplayName('John Doe'));
+        $this->assertSame('John Doe1', StringHelper::normalizeDisplayName('John Doe1'));
     }
 
     public function testNormalizeDisplayNameTrimsLeadingAndTrailingWhitespace()
