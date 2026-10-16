@@ -14,7 +14,7 @@ class StringHelperTest extends TestCase
 
     public function testNormalizeDisplayNameTrimsLeadingAndTrailingWhitespace()
     {
-        $this->assertSame('John Doe', StringHelper::normalizeDisplayName('  John Doe  '));
+        $this->assertSame('John Doe 1', StringHelper::normalizeDisplayName('  John Doe 1  '));
     }
 
     public function testNormalizeDisplayNameReturnsEmptyStringForEmptyInput()
